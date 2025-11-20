@@ -9,4 +9,5 @@ RUN chmod +x mvnw
 
 RUN ./mvnw -DskipTests clean package
 
-CMD ["java", "-jar", "target/*.jar"]
+CMD ["sh", "-c", "java -jar $(ls target/*.jar | head -n 1)"]
+
