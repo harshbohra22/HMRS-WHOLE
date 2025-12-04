@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { CheckCircle, XCircle } from 'lucide-react';
 import { jobAdvertisementsApi } from '../services/api';
 import { Card, CardBody } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -11,7 +11,7 @@ export const TestApi: React.FC = () => {
     all?: { success: boolean; message: string; data?: any };
   }>({});
 
-  const testEndpoint = async (endpoint: string, fn: () => Promise<any>) => {
+  const testEndpoint = async (fn: () => Promise<any>) => {
     try {
       const result = await fn();
       // Handle backend typo: "succes" instead of "success"
@@ -35,8 +35,8 @@ export const TestApi: React.FC = () => {
     setResults({});
 
     const [active, all] = await Promise.all([
-      testEndpoint('Active Jobs', () => jobAdvertisementsApi.getActive()),
-      testEndpoint('All Jobs', () => jobAdvertisementsApi.getAll()),
+      testEndpoint(() => jobAdvertisementsApi.getActive()),
+      testEndpoint(() => jobAdvertisementsApi.getAll()),
     ]);
 
     setResults({ active, all });
@@ -64,22 +64,20 @@ export const TestApi: React.FC = () => {
                 <h3 className="font-semibold text-gray-900 dark:text-white mb-2">
                   Active Jobs Endpoint
                 </h3>
-                <div className={`p-4 rounded-lg flex items-start space-x-3 ${
-                  results.active.success 
-                    ? 'bg-green-50 dark:bg-green-900/20' 
-                    : 'bg-red-50 dark:bg-red-900/20'
-                }`}>
+                <div className={`p-4 rounded-lg flex items-start space-x-3 ${results.active.success
+                  ? 'bg-green-50 dark:bg-green-900/20'
+                  : 'bg-red-50 dark:bg-red-900/20'
+                  }`}>
                   {results.active.success ? (
                     <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400 mt-0.5" />
                   ) : (
                     <XCircle className="h-5 w-5 text-red-600 dark:text-red-400 mt-0.5" />
                   )}
                   <div className="flex-1">
-                    <p className={`font-medium ${
-                      results.active.success 
-                        ? 'text-green-900 dark:text-green-200' 
-                        : 'text-red-900 dark:text-red-200'
-                    }`}>
+                    <p className={`font-medium ${results.active.success
+                      ? 'text-green-900 dark:text-green-200'
+                      : 'text-red-900 dark:text-red-200'
+                      }`}>
                       {results.active.success ? '✓ Success' : '✗ Failed'}
                     </p>
                     <p className="text-sm text-gray-700 dark:text-gray-300 mt-1">
@@ -90,9 +88,9 @@ export const TestApi: React.FC = () => {
                         Found {Array.isArray(results.active.data) ? results.active.data.length : 0} jobs
                       </p>
                     )}
-                    {results.active.error && (
+                    {results.active && (results.active as any).error && (
                       <p className="text-xs text-red-600 dark:text-red-400 mt-2">
-                        Error Code: {results.active.error}
+                        Error Code: {(results.active as any).error}
                       </p>
                     )}
                   </div>
@@ -105,22 +103,20 @@ export const TestApi: React.FC = () => {
                 <h3 className="font-semibold text-gray-900 dark:text-white mb-2">
                   All Jobs Endpoint
                 </h3>
-                <div className={`p-4 rounded-lg flex items-start space-x-3 ${
-                  results.all.success 
-                    ? 'bg-green-50 dark:bg-green-900/20' 
-                    : 'bg-red-50 dark:bg-red-900/20'
-                }`}>
+                <div className={`p-4 rounded-lg flex items-start space-x-3 ${results.all.success
+                  ? 'bg-green-50 dark:bg-green-900/20'
+                  : 'bg-red-50 dark:bg-red-900/20'
+                  }`}>
                   {results.all.success ? (
                     <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400 mt-0.5" />
                   ) : (
                     <XCircle className="h-5 w-5 text-red-600 dark:text-red-400 mt-0.5" />
                   )}
                   <div className="flex-1">
-                    <p className={`font-medium ${
-                      results.all.success 
-                        ? 'text-green-900 dark:text-green-200' 
-                        : 'text-red-900 dark:text-red-200'
-                    }`}>
+                    <p className={`font-medium ${results.all.success
+                      ? 'text-green-900 dark:text-green-200'
+                      : 'text-red-900 dark:text-red-200'
+                      }`}>
                       {results.all.success ? '✓ Success' : '✗ Failed'}
                     </p>
                     <p className="text-sm text-gray-700 dark:text-gray-300 mt-1">
@@ -131,9 +127,9 @@ export const TestApi: React.FC = () => {
                         Found {Array.isArray(results.all.data) ? results.all.data.length : 0} jobs
                       </p>
                     )}
-                    {results.all.error && (
+                    {results.all && (results.all as any).error && (
                       <p className="text-xs text-red-600 dark:text-red-400 mt-2">
-                        Error Code: {results.all.error}
+                        Error Code: {(results.all as any).error}
                       </p>
                     )}
                   </div>

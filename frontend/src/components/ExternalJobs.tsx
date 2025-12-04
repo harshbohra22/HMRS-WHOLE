@@ -38,10 +38,11 @@ export const ExternalJobs: React.FC = () => {
       setLoading(true);
       setError(null);
       const result = await externalJobsApi.searchJobs(country, searchQuery, location, 20, 1);
-      setJobs(result.results || []);
+      const jobs = result.results || [];
+      setJobs(jobs);
 
-      if (result.results.length === 0) {
-        toast.info('No jobs found. Try different search terms.');
+      if (jobs.length === 0) {
+        toast.success('No jobs found. Try different search terms.');
       } else {
         toast.success(`Found ${result.count} jobs`);
       }
