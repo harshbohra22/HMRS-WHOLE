@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { MapPin, Briefcase, DollarSign, Calendar, Filter, Globe, Database } from 'lucide-react';
-import { jobAdvertisementsApi } from '../services/api';
-import type { JobAdvertisement } from '../types';
+import { useNavigate } from 'react-router-dom';
+import { MapPin, Briefcase, DollarSign, Calendar, Filter, Globe, Database, MessageCircle, ClipboardList, CheckCircle2, XCircle, Clock } from 'lucide-react';
+import { jobAdvertisementsApi, jobApplicationsApi } from '../services/api';
+import type { JobAdvertisement, JobApplication } from '../types';
 import { Card, CardBody } from '../components/ui/Card';
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
@@ -10,13 +11,24 @@ import { ExternalJobs } from '../components/ExternalJobs';
 import toast from 'react-hot-toast';
 
 export const Jobs: React.FC = () => {
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<'browse' | 'applications'>('browse');
   const [jobs, setJobs] = useState<JobAdvertisement[]>([]);
+  const [applications, setApplications] = useState<JobApplication[]>([]);
+  const [seekerId, setSeekerId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [appsLoading, setAppsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCity, setSelectedCity] = useState('');
   const [showActiveOnly, setShowActiveOnly] = useState(true);
   const [sortBy, setSortBy] = useState<'deadline' | 'none'>('none');
   const [jobSource, setJobSource] = useState<'internal' | 'external'>('internal');
+
+  // Load seekerId from localStorage (set during registration / apply)
+  useEffect(() => {
+    const stored = localStorage.getItem('seekerId');
+    if (stored) setSeekerId(parseInt(stored, 10));
+  }, []);
 
   useEffect(() => {
     loadJobs();
@@ -61,7 +73,7 @@ export const Jobs: React.FC = () => {
         } else if (status === 500) {
           toast.error('Server error. Please check if the backend is running.');
         } else if (status === 0 || error.code === 'ERR_NETWORK') {
-          toast.error('Cannot connect to backend. Check if https://hmrs.onrender.com is accessible.');
+          toast.error('Cannot connect to backend. Is the server running?');
         } else {
           toast.error(`Error ${status}: ${message}`);
         }
@@ -80,6 +92,56 @@ export const Jobs: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadApplications = async (id: number) => {
+    try {
+      setAppsLoading(true);
+      const result = await jobApplicationsApi.getByJobSeeker(id);
+      const isSuccess = result.success || (result as any).succes || false;
+      if (isSuccess) setApplications(result.data || []);
+      else toast.error(result.message || 'Failed to load applications');
+    } catch {
+      toast.error('Failed to load applications. Is the backend running?');
+    } finally {
+      setAppsLoading(false);
+    }
+  };
+
+  // Load applications whenever the tab is switched and a seekerId is known
+  useEffect(() => {
+    if (activeTab === 'applications' && seekerId) {
+      loadApplications(seekerId);
+    }
+  }, [activeTab, seekerId]);
+
+  const statusIcon = (status: string) => {
+    if (status === 'ACCEPTED') return <CheckCircle2 className="h-4 w-4 text-emerald-500" />;
+    if (status === 'REJECTED') return <XCircle className="h-4 w-4 text-red-500" />;
+    return <Clock className="h-4 w-4 text-amber-500" />;
+  };
+
+  const statusBadge = (status: string) => {
+    if (status === 'ACCEPTED')
+      return 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700';
+    if (status === 'REJECTED')
+      return 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 border border-red-300 dark:border-red-700';
+    return 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700';
+  };
+
+  const openChat = (app: JobApplication) => {
+    if (!seekerId) {
+      toast.error('Please set your seeker ID first.');
+      return;
+    }
+    const params = new URLSearchParams({
+      senderType: 'JOBSEEKER',
+      senderId: String(seekerId),
+      senderName: localStorage.getItem('seekerName') ?? 'Job Seeker',
+      jobTitle: localStorage.getItem(`jobTitle_${app.jobAdvertisementId}`) ?? 'Job Position',
+      companyName: localStorage.getItem(`companyName_${app.jobAdvertisementId}`) ?? 'Company',
+    });
+    navigate(`/chat/${app.id}?${params.toString()}`);
   };
 
   const filteredJobs = useMemo(() => {
@@ -126,8 +188,123 @@ export const Jobs: React.FC = () => {
               </p>
             </div>
 
-            {/* Job Source Toggle */}
+            {/* Main Tab Switcher: Browse Jobs vs My Applications */}
             <div className="mt-4 md:mt-0 flex items-center space-x-2 bg-white dark:bg-gray-800 p-1 rounded-lg border border-gray-200 dark:border-gray-700">
+              <button
+                id="tab-browse"
+                onClick={() => setActiveTab('browse')}
+                className={`flex items-center space-x-2 px-4 py-2 rounded-md transition-colors ${
+                  activeTab === 'browse'
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                }`}
+              >
+                <Briefcase className="h-4 w-4" />
+                <span>Browse Jobs</span>
+              </button>
+              <button
+                id="tab-applications"
+                onClick={() => setActiveTab('applications')}
+                className={`flex items-center space-x-2 px-4 py-2 rounded-md transition-colors ${
+                  activeTab === 'applications'
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                }`}
+              >
+                <ClipboardList className="h-4 w-4" />
+                <span>My Applications</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* ═══════════════════════════════════════════════════════════ */}
+        {/* ═══  MY APPLICATIONS TAB  ═══════════════════════════════ */}
+        {/* ═══════════════════════════════════════════════════════════ */}
+        {activeTab === 'applications' && (
+          <div>
+            {!seekerId ? (
+              <Card>
+                <CardBody className="text-center py-12">
+                  <ClipboardList className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+                    Set Your Seeker ID
+                  </h3>
+                  <p className="text-gray-600 dark:text-gray-400 mb-4">
+                    To view your applications, open the browser console and run:
+                  </p>
+                  <code className="bg-gray-100 dark:bg-gray-800 text-sm px-3 py-2 rounded-lg block max-w-md mx-auto text-left">
+                    localStorage.setItem('seekerId', 'YOUR_ID')
+                  </code>
+                  <p className="text-gray-500 dark:text-gray-500 text-sm mt-3">
+                    Then refresh this page.
+                  </p>
+                </CardBody>
+              </Card>
+            ) : appsLoading ? (
+              <div className="text-center py-12">
+                <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                <p className="mt-4 text-gray-600 dark:text-gray-400">Loading applications...</p>
+              </div>
+            ) : applications.length === 0 ? (
+              <Card>
+                <CardBody className="text-center py-12">
+                  <ClipboardList className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+                    No applications yet
+                  </h3>
+                  <p className="text-gray-600 dark:text-gray-400">
+                    Apply to a job listing to see your applications here.
+                  </p>
+                </CardBody>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 gap-4">
+                {applications.map((app) => (
+                  <Card key={app.id} hover>
+                    <CardBody>
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            {statusIcon(app.status)}
+                            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                              Application #{app.id}
+                            </h3>
+                            <span className={`inline-flex items-center text-xs font-medium px-2.5 py-0.5 rounded-full ${statusBadge(app.status)}`}>
+                              {app.status}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                            Job Ad #{app.jobAdvertisementId} · Applied: {formatDate(app.applicationDate)}
+                          </p>
+                        </div>
+
+                        {/* Chat button — only for ACCEPTED applications */}
+                        {app.status === 'ACCEPTED' && (
+                          <Button
+                            onClick={() => openChat(app)}
+                            className="flex items-center gap-2"
+                          >
+                            <MessageCircle className="h-4 w-4" />
+                            💬 Open Chat
+                          </Button>
+                        )}
+                      </div>
+                    </CardBody>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ═══════════════════════════════════════════════════════════ */}
+        {/* ═══  BROWSE JOBS TAB  ═══════════════════════════════════= */}
+        {/* ═══════════════════════════════════════════════════════════ */}
+        {activeTab === 'browse' && (
+          <>
+            {/* Job Source Toggle */}
+            <div className="mb-6 flex items-center space-x-2 bg-white dark:bg-gray-800 p-1 rounded-lg border border-gray-200 dark:border-gray-700 w-fit">
               <button
                 onClick={() => setJobSource('internal')}
                 className={`flex items-center space-x-2 px-4 py-2 rounded-md transition-colors ${jobSource === 'internal'
@@ -149,150 +326,151 @@ export const Jobs: React.FC = () => {
                 <span>External Jobs</span>
               </button>
             </div>
-          </div>
-        </div>
 
-        {/* External Jobs Component */}
-        {jobSource === 'external' && (
-          <ExternalJobs />
-        )}
-
-        {/* Internal Jobs */}
-        {jobSource === 'internal' && (
-          <>
-
-            {/* Filters */}
-            <Card className="mb-6">
-              <CardBody>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <div className="md:col-span-2">
-                    <Input
-                      placeholder="Search jobs or companies..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full"
-                    />
-                  </div>
-                  <Select
-                    options={cities}
-                    value={selectedCity}
-                    onChange={(e) => setSelectedCity(e.target.value)}
-                    label="City"
-                  />
-                  <div className="flex items-end">
-                    <Button
-                      variant={showActiveOnly ? 'primary' : 'outline'}
-                      onClick={() => setShowActiveOnly(!showActiveOnly)}
-                      className="w-full"
-                    >
-                      <Filter className="h-4 w-4 mr-2" />
-                      {showActiveOnly ? 'Active Only' : 'All Jobs'}
-                    </Button>
-                  </div>
-                </div>
-                <div className="mt-4 flex gap-2">
-                  <Button
-                    variant={sortBy === 'deadline' ? 'primary' : 'ghost'}
-                    size="sm"
-                    onClick={() => setSortBy(sortBy === 'deadline' ? 'none' : 'deadline')}
-                  >
-                    Sort by Deadline
-                  </Button>
-                </div>
-              </CardBody>
-            </Card>
-
-            {/* Jobs List */}
-            {loading ? (
-              <div className="text-center py-12">
-                <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-                <p className="mt-4 text-gray-600 dark:text-gray-400">Loading jobs...</p>
-              </div>
-            ) : filteredJobs.length === 0 ? (
-              <Card>
-                <CardBody className="text-center py-12">
-                  <Briefcase className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-                    No jobs found
-                  </h3>
-                  <p className="text-gray-600 dark:text-gray-400">
-                    Try adjusting your search criteria
-                  </p>
-                </CardBody>
-              </Card>
-            ) : (
-              <div className="grid grid-cols-1 gap-6">
-                {filteredJobs.map((job) => (
-                  <Card key={job.id} hover>
-                    <CardBody>
-                      <div className="flex flex-col md:flex-row md:items-start md:justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-start justify-between mb-2">
-                            <div>
-                              <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
-                                {job.jobTitle}
-                              </h3>
-                              <p className="text-lg text-blue-600 dark:text-blue-400 font-medium">
-                                {job.companyName}
-                              </p>
-                            </div>
-                            {job.active && (
-                              <span className="px-3 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded-full text-sm font-medium">
-                                Active
-                              </span>
-                            )}
-                          </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                            <div className="flex items-center text-gray-600 dark:text-gray-400">
-                              <MapPin className="h-5 w-5 mr-2" />
-                              {job.city}
-                            </div>
-                            <div className="flex items-center text-gray-600 dark:text-gray-400">
-                              <Briefcase className="h-5 w-5 mr-2" />
-                              {job.openPositionCount} position{job.openPositionCount > 1 ? 's' : ''}
-                            </div>
-                            <div className="flex items-center text-gray-600 dark:text-gray-400">
-                              <DollarSign className="h-5 w-5 mr-2" />
-                              {formatSalary(job.minSalary, job.maxSalary)}
-                            </div>
-                            <div className="flex items-center text-gray-600 dark:text-gray-400">
-                              <Calendar className="h-5 w-5 mr-2" />
-                              Deadline: {formatDate(job.applicationDeadline)}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="mt-4 md:mt-0 md:ml-4 flex flex-col gap-2">
-                          <Button
-                            onClick={() => {
-                              // Store job ID in localStorage for application
-                              localStorage.setItem('selectedJobId', job.id.toString());
-                              toast.success('Job selected! Please register as a job seeker to apply.');
-                            }}
-                            className="w-full md:w-auto"
-                          >
-                            Apply Now
-                          </Button>
-                          <Button
-                            variant="outline"
-                            onClick={() => {
-                              alert(`Job ID: ${job.id}\nCompany: ${job.companyName}\nPosition: ${job.jobTitle}\nCity: ${job.city}`);
-                            }}
-                            className="w-full md:w-auto"
-                          >
-                            View Details
-                          </Button>
-                        </div>
-                      </div>
-                    </CardBody>
-                  </Card>
-                ))}
-              </div>
+            {/* External Jobs Component */}
+            {jobSource === 'external' && (
+              <ExternalJobs />
             )}
 
-            {!loading && filteredJobs.length > 0 && (
-              <div className="mt-8 text-center text-gray-600 dark:text-gray-400">
-                Showing {filteredJobs.length} of {jobs.length} jobs
-              </div>
+            {/* Internal Jobs */}
+            {jobSource === 'internal' && (
+              <>
+                {/* Filters */}
+                <Card className="mb-6">
+                  <CardBody>
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                      <div className="md:col-span-2">
+                        <Input
+                          placeholder="Search jobs or companies..."
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          className="w-full"
+                        />
+                      </div>
+                      <Select
+                        options={cities}
+                        value={selectedCity}
+                        onChange={(e) => setSelectedCity(e.target.value)}
+                        label="City"
+                      />
+                      <div className="flex items-end">
+                        <Button
+                          variant={showActiveOnly ? 'primary' : 'outline'}
+                          onClick={() => setShowActiveOnly(!showActiveOnly)}
+                          className="w-full"
+                        >
+                          <Filter className="h-4 w-4 mr-2" />
+                          {showActiveOnly ? 'Active Only' : 'All Jobs'}
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="mt-4 flex gap-2">
+                      <Button
+                        variant={sortBy === 'deadline' ? 'primary' : 'ghost'}
+                        size="sm"
+                        onClick={() => setSortBy(sortBy === 'deadline' ? 'none' : 'deadline')}
+                      >
+                        Sort by Deadline
+                      </Button>
+                    </div>
+                  </CardBody>
+                </Card>
+
+                {/* Jobs List */}
+                {loading ? (
+                  <div className="text-center py-12">
+                    <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                    <p className="mt-4 text-gray-600 dark:text-gray-400">Loading jobs...</p>
+                  </div>
+                ) : filteredJobs.length === 0 ? (
+                  <Card>
+                    <CardBody className="text-center py-12">
+                      <Briefcase className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                      <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+                        No jobs found
+                      </h3>
+                      <p className="text-gray-600 dark:text-gray-400">
+                        Try adjusting your search criteria
+                      </p>
+                    </CardBody>
+                  </Card>
+                ) : (
+                  <div className="grid grid-cols-1 gap-6">
+                    {filteredJobs.map((job) => (
+                      <Card key={job.id} hover>
+                        <CardBody>
+                          <div className="flex flex-col md:flex-row md:items-start md:justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-start justify-between mb-2">
+                                <div>
+                                  <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
+                                    {job.jobTitle}
+                                  </h3>
+                                  <p className="text-lg text-blue-600 dark:text-blue-400 font-medium">
+                                    {job.companyName}
+                                  </p>
+                                </div>
+                                {job.active && (
+                                  <span className="px-3 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded-full text-sm font-medium">
+                                    Active
+                                  </span>
+                                )}
+                              </div>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                                <div className="flex items-center text-gray-600 dark:text-gray-400">
+                                  <MapPin className="h-5 w-5 mr-2" />
+                                  {job.city}
+                                </div>
+                                <div className="flex items-center text-gray-600 dark:text-gray-400">
+                                  <Briefcase className="h-5 w-5 mr-2" />
+                                  {job.openPositionCount} position{job.openPositionCount > 1 ? 's' : ''}
+                                </div>
+                                <div className="flex items-center text-gray-600 dark:text-gray-400">
+                                  <DollarSign className="h-5 w-5 mr-2" />
+                                  {formatSalary(job.minSalary, job.maxSalary)}
+                                </div>
+                                <div className="flex items-center text-gray-600 dark:text-gray-400">
+                                  <Calendar className="h-5 w-5 mr-2" />
+                                  Deadline: {formatDate(job.applicationDeadline)}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="mt-4 md:mt-0 md:ml-4 flex flex-col gap-2">
+                              <Button
+                                onClick={() => {
+                                  // Store job metadata in localStorage for chat later
+                                  localStorage.setItem('selectedJobId', job.id.toString());
+                                  localStorage.setItem(`jobTitle_${job.id}`, job.jobTitle);
+                                  localStorage.setItem(`companyName_${job.id}`, job.companyName);
+                                  toast.success('Job selected! Please register as a job seeker to apply.');
+                                }}
+                                className="w-full md:w-auto"
+                              >
+                                Apply Now
+                              </Button>
+                              <Button
+                                variant="outline"
+                                onClick={() => {
+                                  alert(`Job ID: ${job.id}\nCompany: ${job.companyName}\nPosition: ${job.jobTitle}\nCity: ${job.city}`);
+                                }}
+                                className="w-full md:w-auto"
+                              >
+                                View Details
+                              </Button>
+                            </div>
+                          </div>
+                        </CardBody>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+
+                {!loading && filteredJobs.length > 0 && (
+                  <div className="mt-8 text-center text-gray-600 dark:text-gray-400">
+                    Showing {filteredJobs.length} of {jobs.length} jobs
+                  </div>
+                )}
+              </>
             )}
           </>
         )}
@@ -300,4 +478,3 @@ export const Jobs: React.FC = () => {
     </div>
   );
 };
-

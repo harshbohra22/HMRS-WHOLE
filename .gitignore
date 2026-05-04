@@ -31,3 +31,8 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# Build logs
+build_log.txt
+build-errors.txt
+check_cors.js

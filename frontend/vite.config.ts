@@ -7,9 +7,15 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'https://hmrs.onrender.com',
+        target: 'http://localhost:8080',
         changeOrigin: true,
         secure: false,
+      },
+      '/ws': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+        secure: false,
+        ws: true,
       },
       '/adzuna': {
         target: 'https://api.adzuna.com/v1/api/jobs',
@@ -17,5 +23,8 @@ export default defineConfig({
         rewrite: (path) => path.replace(/^\/adzuna/, ''),
       },
     },
+  },
+  define: {
+    global: 'window',
   },
 })
