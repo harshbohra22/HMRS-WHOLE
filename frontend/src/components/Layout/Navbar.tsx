@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Briefcase, Home, Moon, Sun } from 'lucide-react';
+import { Briefcase, Home, Moon, Sun, Users } from 'lucide-react';
 import { Button } from '../ui/Button';
 
 export const Navbar: React.FC = () => {
@@ -53,6 +53,17 @@ export const Navbar: React.FC = () => {
               >
                 <Briefcase className="h-4 w-4 inline mr-1" />
                 Jobs
+              </Link>
+              <Link
+                to="/employer"
+                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  isActive('/employer')
+                    ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                }`}
+              >
+                <Users className="h-4 w-4 inline mr-1" />
+                Recruiter
               </Link>
             </div>
           </div>

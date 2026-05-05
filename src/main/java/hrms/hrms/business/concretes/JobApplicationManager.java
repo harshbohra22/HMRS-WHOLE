@@ -87,4 +87,14 @@ public class JobApplicationManager implements JobApplicationService {
 				.toList();
 		return new SuccessDataResult<>(list, "Applications listed for job seeker.");
 	}
+
+	@Override
+	public DataResult<List<JobApplicationDto>> getAll() {
+		var list = jobApplicationDao.findAll().stream()
+				.map(a -> new JobApplicationDto(a.getId(), a.getJobAdvertisement().getId(), a.getJobSeeker().getId(),
+						a.getJobAdvertisement().getJobPosition().getTitle(),
+						a.getJobAdvertisement().getEmployer().getCompanyName(), a.getApplicationDate(), a.getStatus()))
+				.toList();
+		return new SuccessDataResult<>(list, "All applications listed.");
+	}
 }

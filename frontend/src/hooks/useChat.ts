@@ -27,6 +27,7 @@ export function useChat({
   const [messages, setMessages] = useState<ChatMessageDto[]>([]);
   const [connected, setConnected] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isTyping, setIsTyping] = useState(false);
   const clientRef = useRef<Client | null>(null);
 
   // Load history from REST on mount
@@ -52,6 +53,9 @@ export function useChat({
         client.subscribe(`/topic/chat/${applicationId}`, (frame) => {
           try {
             const incoming: ChatMessageDto = JSON.parse(frame.body);
+            if (incoming.senderType !== senderType) {
+              setIsTyping(false);
+            }
             setMessages((prev) => [...prev, incoming]);
           } catch (e) {
             console.error('Failed to parse incoming chat message', e);
@@ -93,9 +97,13 @@ export function useChat({
         destination: '/app/chat.send',
         body: JSON.stringify(payload),
       });
+
+      if (senderType === 'JOBSEEKER') {
+        setIsTyping(true);
+      }
     },
     [applicationId, senderType, senderId, senderName]
   );
 
-  return { messages, sendMessage, connected, loading };
+  return { messages, sendMessage, connected, loading, isTyping };
 }

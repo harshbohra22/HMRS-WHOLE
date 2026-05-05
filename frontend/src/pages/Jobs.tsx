@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MapPin, Briefcase, DollarSign, Calendar, Filter, Globe, Database, MessageCircle, ClipboardList, CheckCircle2, XCircle, Clock } from 'lucide-react';
+import { MapPin, Briefcase, DollarSign, Calendar, Filter, Globe, Database, MessageCircle, ClipboardList, CheckCircle2, XCircle, Clock, Bell } from 'lucide-react';
 import { jobAdvertisementsApi, jobApplicationsApi } from '../services/api';
 import type { JobAdvertisement, JobApplication } from '../types';
 import { Card, CardBody } from '../components/ui/Card';
@@ -8,6 +8,8 @@ import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
 import { Select } from '../components/ui/Select';
 import { ExternalJobs } from '../components/ExternalJobs';
+import { FloatingChat } from '../components/Chat/FloatingChat';
+import { useChatNotification } from '../hooks/useChatNotification';
 import toast from 'react-hot-toast';
 
 export const Jobs: React.FC = () => {
@@ -23,11 +25,51 @@ export const Jobs: React.FC = () => {
   const [showActiveOnly, setShowActiveOnly] = useState(true);
   const [sortBy, setSortBy] = useState<'deadline' | 'none'>('none');
   const [jobSource, setJobSource] = useState<'internal' | 'external'>('internal');
+  const [activeChat, setActiveChat] = useState<{
+    appId: number;
+    jobTitle: string;
+    companyName: string;
+  } | null>(null);
+  const [notifApp, setNotifApp] = useState<JobApplication | null>(null);
+
+  // Background notification listener — fires even when chat is closed
+  const appIds = useMemo(() => applications.map((a) => a.id), [applications]);
+  const { unreadCounts, clearUnread, totalUnread } = useChatNotification({
+    applicationIds: appIds,
+    senderType: 'JOBSEEKER',
+    senderId: seekerId ?? 0,
+    onNewMessage: (appId, msg) => {
+      // Only notify if this chat is not currently open
+      if (!activeChat || activeChat.appId !== appId) {
+        const app = applications.find((a) => a.id === appId);
+        toast(
+          () => (
+            <span className="flex items-center gap-2">
+              <Bell className="w-4 h-4 text-indigo-400" />
+              <span>
+                <strong>{msg.senderName}</strong> sent you a message!
+              </span>
+            </span>
+          ),
+          { duration: 5000, icon: '💬' }
+        );
+        if (app) setNotifApp(app);
+      }
+    },
+  });
 
   // Load seekerId from localStorage (set during registration / apply)
+  // Auto-default to the seeded test user (ID=1) so no manual setup is needed
   useEffect(() => {
     const stored = localStorage.getItem('seekerId');
-    if (stored) setSeekerId(parseInt(stored, 10));
+    if (stored) {
+      setSeekerId(parseInt(stored, 10));
+    } else {
+      // Auto-seed defaults so notifications work out of the box
+      localStorage.setItem('seekerId', '1');
+      localStorage.setItem('seekerName', 'Harsh Bohra');
+      setSeekerId(1);
+    }
   }, []);
 
   useEffect(() => {
@@ -108,12 +150,19 @@ export const Jobs: React.FC = () => {
     }
   };
 
-  // Load applications whenever the tab is switched and a seekerId is known
+  // Load applications whenever the tab is switched AND also silently on mount
+  // so the background notification WebSocket listener has IDs to subscribe to
+  useEffect(() => {
+    if (seekerId) {
+      loadApplications(seekerId);
+    }
+  }, [seekerId]); // <-- runs as soon as seekerId is known (background load)
+
   useEffect(() => {
     if (activeTab === 'applications' && seekerId) {
       loadApplications(seekerId);
     }
-  }, [activeTab, seekerId]);
+  }, [activeTab]); // <-- also refresh when tab is clicked
 
   const statusIcon = (status: string) => {
     if (status === 'ACCEPTED') return <CheckCircle2 className="h-4 w-4 text-emerald-500" />;
@@ -134,14 +183,11 @@ export const Jobs: React.FC = () => {
       toast.error('Please set your seeker ID first.');
       return;
     }
-    const params = new URLSearchParams({
-      senderType: 'JOBSEEKER',
-      senderId: String(seekerId),
-      senderName: localStorage.getItem('seekerName') ?? 'Job Seeker',
-      jobTitle: localStorage.getItem(`jobTitle_${app.jobAdvertisementId}`) ?? 'Job Position',
-      companyName: localStorage.getItem(`companyName_${app.jobAdvertisementId}`) ?? 'Company',
-    });
-    navigate(`/chat/${app.id}?${params.toString()}`);
+    const jobTitle = localStorage.getItem(`jobTitle_${app.jobAdvertisementId}`) ?? 'Job Position';
+    const companyName = localStorage.getItem(`companyName_${app.jobAdvertisementId}`) ?? 'Company';
+    clearUnread(app.id);
+    setNotifApp(null);
+    setActiveChat({ appId: app.id, jobTitle, companyName });
   };
 
   const filteredJobs = useMemo(() => {
@@ -279,16 +325,14 @@ export const Jobs: React.FC = () => {
                           </p>
                         </div>
 
-                        {/* Chat button — only for ACCEPTED applications */}
-                        {app.status === 'ACCEPTED' && (
-                          <Button
-                            onClick={() => openChat(app)}
-                            className="flex items-center gap-2"
-                          >
-                            <MessageCircle className="h-4 w-4" />
-                            💬 Open Chat
-                          </Button>
-                        )}
+                        {/* Chat button for AI Screening / Recruiter Interaction */}
+                        <Button
+                          onClick={() => openChat(app)}
+                          className="flex items-center gap-2"
+                        >
+                          <MessageCircle className="h-4 w-4" />
+                          💬 Chat with AI Recruiter
+                        </Button>
                       </div>
                     </CardBody>
                   </Card>
@@ -475,6 +519,35 @@ export const Jobs: React.FC = () => {
           </>
         )}
       </div>
+      {/* Floating chat window */}
+      {activeChat && seekerId && (
+        <FloatingChat
+          applicationId={activeChat.appId}
+          senderType="JOBSEEKER"
+          senderId={seekerId}
+          senderName={localStorage.getItem('seekerName') ?? 'Harsh Bohra'}
+          jobTitle={activeChat.jobTitle}
+          companyName={activeChat.companyName}
+          onClose={() => setActiveChat(null)}
+        />
+      )}
+
+      {/* Persistent notification bubble when chat is CLOSED but there are unread messages */}
+      {!activeChat && notifApp && seekerId && totalUnread > 0 && (
+        <button
+          onClick={() => openChat(notifApp)}
+          className="fixed bottom-6 right-6 z-[100] flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-violet-600 text-white px-4 py-3 rounded-2xl shadow-2xl shadow-indigo-500/40 hover:scale-105 transition-transform animate-bounce"
+          title="New message from Recruiter!"
+        >
+          <div className="relative">
+            <MessageCircle className="w-5 h-5" />
+            <span className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center animate-pulse">
+              {totalUnread}
+            </span>
+          </div>
+          <span className="text-sm font-semibold">New message from Recruiter!</span>
+        </button>
+      )}
     </div>
   );
 };

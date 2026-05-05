@@ -111,6 +111,10 @@ export const jobApplicationsApi = {
     const response = await api.get<DataResult<JobApplication[]>>(`/applications/by-jobseeker/${seekerId}`);
     return response.data;
   },
+  getAll: async (): Promise<DataResult<JobApplication[]>> => {
+    const response = await api.get<DataResult<JobApplication[]>>('/applications/getAll');
+    return response.data;
+  },
 };
 
 // Cities API

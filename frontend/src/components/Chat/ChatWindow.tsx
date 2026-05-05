@@ -50,7 +50,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   const [inputValue, setInputValue] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const { messages, sendMessage, connected, loading } = useChat({
+  const { messages, sendMessage, connected, loading, isTyping } = useChat({
     applicationId,
     senderType,
     senderId,
@@ -179,6 +179,17 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
               </div>
             </div>
           ))
+        )}
+
+        {isTyping && (
+          <div className="flex flex-col items-start animate-pulse mb-4">
+            <span className="text-xs mb-1 px-1 text-slate-500">Recruiter is typing...</span>
+            <div className="bg-slate-800 text-slate-400 rounded-2xl px-4 py-2 text-sm border border-slate-700/60 rounded-tl-sm flex gap-1">
+              <span className="w-1 h-1 bg-slate-500 rounded-full animate-bounce [animation-delay:-0.3s]" />
+              <span className="w-1 h-1 bg-slate-500 rounded-full animate-bounce [animation-delay:-0.15s]" />
+              <span className="w-1 h-1 bg-slate-500 rounded-full animate-bounce" />
+            </div>
+          </div>
         )}
 
         <div ref={messagesEndRef} />

@@ -48,4 +48,9 @@ public class JobApplicationController {
 	public DataResult<List<JobApplicationDto>> getByJobSeeker(@PathVariable("seekerId") Integer seekerId) {
 		return jobApplicationService.getByJobSeeker(seekerId);
 	}
+
+	@GetMapping("/getAll")
+	public DataResult<List<JobApplicationDto>> getAll() {
+		return jobApplicationService.getAll();
+	}
 }

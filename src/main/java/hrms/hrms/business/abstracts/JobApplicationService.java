@@ -17,4 +17,6 @@ public interface JobApplicationService {
 	DataResult<List<JobApplicationDto>> getByAdvertisement(Integer jobAdvertisementId);
 
 	DataResult<List<JobApplicationDto>> getByJobSeeker(Integer jobSeekerId);
+	
+	DataResult<List<JobApplicationDto>> getAll();
 }
