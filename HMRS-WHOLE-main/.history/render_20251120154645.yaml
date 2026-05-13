@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: hrms-app
+    env: java
+    plan: free
+    buildCommand: "./mvnw -DskipTests clean package"
+    startCommand: "java -jar target/*.jar"
+    envVars:
+      - key: DB_URL
+        fromDatabase:
+          name: hrms-db
+          property: connectionString
+      - key: DB_USERNAME
+        fromDatabase:
+          name: hrms-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: hrms-db
+          property: password
+
+databases:
+  - name: hrms-db
+    plan: free
