@@ -15,6 +15,7 @@ import hrms.hrms.business.abstracts.JobAdvertisementService;
 import hrms.hrms.core.utilities.DataResult;
 import hrms.hrms.core.utilities.Result;
 import hrms.hrms.dto.JobAdvertisementDto;
+import hrms.hrms.dto.PageDto;
 import hrms.hrms.dto.request.CreateJobAdvertisementRequest;
 import jakarta.validation.Valid;
 
@@ -52,6 +53,17 @@ public class JobAdvertisementController {
 	@GetMapping("/sorted-by-deadline")
 	public DataResult<List<JobAdvertisementDto>> getSortedByDeadlineAsc() {
 		return jobAdvertisementService.getSortedByDeadlineAsc();
+	}
+
+	@GetMapping("/page")
+	public DataResult<PageDto<JobAdvertisementDto>> getPage(
+			@RequestParam(defaultValue = "true") boolean activeOnly,
+			@RequestParam(required = false) String q,
+			@RequestParam(required = false) String city,
+			@RequestParam(defaultValue = "false") boolean sortByDeadline,
+			@RequestParam(defaultValue = "0") int page,
+			@RequestParam(defaultValue = "10") int size) {
+		return jobAdvertisementService.getPage(activeOnly, q, city, sortByDeadline, page, size);
 	}
 
 	@GetMapping("/by-deadline")

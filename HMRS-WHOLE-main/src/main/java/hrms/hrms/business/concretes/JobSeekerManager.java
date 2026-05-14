@@ -10,7 +10,6 @@ import hrms.hrms.core.utilities.DataResult;
 import hrms.hrms.core.utilities.ErrorResult;
 import hrms.hrms.core.utilities.Result;
 import hrms.hrms.core.utilities.SuccessDataResult;
-import hrms.hrms.core.utilities.SuccessResult;
 import hrms.hrms.dto.JobSeekerDto;
 import hrms.hrms.dto.request.JobSeekerRegisterRequest;
 import hrms.hrms.entity.JobSeeker;
@@ -48,7 +47,7 @@ public class JobSeekerManager implements JobSeekerService {
 		js.setPassword(passwordEncoder.encode(request.getPassword()));
 		jobSeekerDao.save(js);
 
-		return new SuccessResult("Job seeker registered.");
+		return new SuccessDataResult<>(js.getId(), "Job seeker registered.");
 	}
 
 	@Override

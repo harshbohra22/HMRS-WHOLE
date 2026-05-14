@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MapPin, Briefcase, DollarSign, Calendar, Filter, Globe, Database, MessageCircle, ClipboardList, CheckCircle2, XCircle, Clock, Bell } from 'lucide-react';
-import { jobAdvertisementsApi, jobApplicationsApi } from '../services/api';
+import { MapPin, Briefcase, DollarSign, Calendar, Filter, Globe, Database, MessageCircle, ClipboardList, CheckCircle2, XCircle, Clock, Bell, UserCircle } from 'lucide-react';
+import { jobAdvertisementsApi, jobApplicationsApi, citiesApi } from '../services/api';
 import type { JobAdvertisement, JobApplication } from '../types';
 import { Card, CardBody } from '../components/ui/Card';
 import { Input } from '../components/ui/Input';
@@ -31,10 +31,18 @@ export const Jobs: React.FC = () => {
     companyName: string;
   } | null>(null);
   const [notifApp, setNotifApp] = useState<JobApplication | null>(null);
+  const [jobPage, setJobPage] = useState(0);
+  const jobPageSize = 8;
+  const [jobTotalPages, setJobTotalPages] = useState(0);
+  const [jobTotalElements, setJobTotalElements] = useState(0);
+  const [appsPage, setAppsPage] = useState(0);
+  const appsPageSize = 6;
+  const [appsTotalPages, setAppsTotalPages] = useState(0);
+  const [cityOptions, setCityOptions] = useState<{ value: string; label: string }[]>([]);
 
   // Background notification listener — fires even when chat is closed
   const appIds = useMemo(() => applications.map((a) => a.id), [applications]);
-  const { unreadCounts, clearUnread, totalUnread } = useChatNotification({
+  const { unreadCounts: _unreadCounts, clearUnread, totalUnread } = useChatNotification({
     applicationIds: appIds,
     senderType: 'JOBSEEKER',
     senderId: seekerId ?? 0,
@@ -58,48 +66,75 @@ export const Jobs: React.FC = () => {
     },
   });
 
-  // Load seekerId from localStorage (set during registration / apply)
-  // Auto-default to the seeded test user (ID=1) so no manual setup is needed
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await citiesApi.getAll();
+        if (res.success || res.succes) {
+          const list = (res.data || []).map((c) => ({ value: c.cityName, label: c.cityName }));
+          setCityOptions([{ value: '', label: 'All cities' }, ...list]);
+        }
+      } catch {
+        /* ignore */
+      }
+    })();
+  }, []);
+
+  // Load seekerId from localStorage (set during registration). No hardcoded default.
   useEffect(() => {
     const stored = localStorage.getItem('seekerId');
     if (stored) {
       setSeekerId(parseInt(stored, 10));
     } else {
-      // Auto-seed defaults so notifications work out of the box
-      localStorage.setItem('seekerId', '1');
-      localStorage.setItem('seekerName', 'Harsh Bohra');
-      setSeekerId(1);
+      setSeekerId(null);
     }
   }, []);
 
   useEffect(() => {
+    setJobPage(0);
+  }, [searchTerm, selectedCity, showActiveOnly, sortBy]);
+
+  useEffect(() => {
     loadJobs();
-  }, [showActiveOnly, sortBy]);
+  }, [showActiveOnly, sortBy, jobPage, searchTerm, selectedCity]);
+
+  useEffect(() => {
+    setAppsPage(0);
+  }, [seekerId]);
+
+  useEffect(() => {
+    if (seekerId) {
+      loadApplications(seekerId, appsPage);
+    }
+  }, [seekerId, appsPage]);
+
+  useEffect(() => {
+    if (activeTab === 'applications' && seekerId) {
+      loadApplications(seekerId, appsPage);
+    }
+  }, [activeTab]);
 
   const loadJobs = async () => {
     try {
       setLoading(true);
-      let result;
-
-      if (sortBy === 'deadline') {
-        result = await jobAdvertisementsApi.getSortedByDeadline();
-      } else if (showActiveOnly) {
-        result = await jobAdvertisementsApi.getActive();
-      } else {
-        result = await jobAdvertisementsApi.getAll();
-      }
-
-      // Handle backend typo: "succes" instead of "success"
+      const result = await jobAdvertisementsApi.getPage({
+        page: jobPage,
+        size: jobPageSize,
+        activeOnly: showActiveOnly,
+        q: searchTerm.trim() || undefined,
+        city: selectedCity || undefined,
+        sortByDeadline: sortBy === 'deadline',
+      });
       const isSuccess = result.success || result.succes || false;
-
-      if (isSuccess) {
-        setJobs(result.data || []);
-        if (result.data && result.data.length === 0) {
-          toast.success('No jobs found in the database');
-        }
+        if (isSuccess && result.data) {
+        setJobs(result.data.content || []);
+        setJobTotalPages(result.data.totalPages);
+        setJobTotalElements(result.data.totalElements);
       } else {
         toast.error(result.message || 'Failed to load jobs');
         setJobs([]);
+        setJobTotalPages(0);
+        setJobTotalElements(0);
       }
     } catch (error: any) {
       console.error('Error loading jobs:', error);
@@ -136,13 +171,17 @@ export const Jobs: React.FC = () => {
     }
   };
 
-  const loadApplications = async (id: number) => {
+  const loadApplications = async (id: number, page: number) => {
     try {
       setAppsLoading(true);
-      const result = await jobApplicationsApi.getByJobSeeker(id);
+      const result = await jobApplicationsApi.getByJobSeekerPage(id, page, appsPageSize);
       const isSuccess = result.success || (result as any).succes || false;
-      if (isSuccess) setApplications(result.data || []);
-      else toast.error(result.message || 'Failed to load applications');
+      if (isSuccess && result.data) {
+        setApplications(result.data.content || []);
+        setAppsTotalPages(result.data.totalPages);
+      } else {
+        toast.error(result.message || 'Failed to load applications');
+      }
     } catch {
       toast.error('Failed to load applications. Is the backend running?');
     } finally {
@@ -150,23 +189,10 @@ export const Jobs: React.FC = () => {
     }
   };
 
-  // Load applications whenever the tab is switched AND also silently on mount
-  // so the background notification WebSocket listener has IDs to subscribe to
-  useEffect(() => {
-    if (seekerId) {
-      loadApplications(seekerId);
-    }
-  }, [seekerId]); // <-- runs as soon as seekerId is known (background load)
-
-  useEffect(() => {
-    if (activeTab === 'applications' && seekerId) {
-      loadApplications(seekerId);
-    }
-  }, [activeTab]); // <-- also refresh when tab is clicked
-
   const statusIcon = (status: string) => {
     if (status === 'ACCEPTED') return <CheckCircle2 className="h-4 w-4 text-emerald-500" />;
     if (status === 'REJECTED') return <XCircle className="h-4 w-4 text-red-500" />;
+    if (status === 'AWAITING_RECRUITER') return <UserCircle className="h-4 w-4 text-sky-500" />;
     return <Clock className="h-4 w-4 text-amber-500" />;
   };
 
@@ -175,6 +201,8 @@ export const Jobs: React.FC = () => {
       return 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700';
     if (status === 'REJECTED')
       return 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 border border-red-300 dark:border-red-700';
+    if (status === 'AWAITING_RECRUITER')
+      return 'bg-sky-100 dark:bg-sky-900/40 text-sky-800 dark:text-sky-200 border border-sky-300 dark:border-sky-700';
     return 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700';
   };
 
@@ -183,27 +211,16 @@ export const Jobs: React.FC = () => {
       toast.error('Please set your seeker ID first.');
       return;
     }
-    const jobTitle = localStorage.getItem(`jobTitle_${app.jobAdvertisementId}`) ?? 'Job Position';
-    const companyName = localStorage.getItem(`companyName_${app.jobAdvertisementId}`) ?? 'Company';
+    const jobTitle =
+      app.jobTitle ?? localStorage.getItem(`jobTitle_${app.jobAdvertisementId}`) ?? 'Job Position';
+    const companyName =
+      app.employerCompanyName ??
+      localStorage.getItem(`companyName_${app.jobAdvertisementId}`) ??
+      'Company';
     clearUnread(app.id);
     setNotifApp(null);
     setActiveChat({ appId: app.id, jobTitle, companyName });
   };
-
-  const filteredJobs = useMemo(() => {
-    return jobs.filter((job) => {
-      const matchesSearch =
-        job.jobTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        job.companyName.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesCity = !selectedCity || job.city === selectedCity;
-      return matchesSearch && matchesCity;
-    });
-  }, [jobs, searchTerm, selectedCity]);
-
-  const cities = useMemo(() => {
-    const uniqueCities = Array.from(new Set(jobs.map((job) => job.city)));
-    return uniqueCities.map((city) => ({ value: city, label: city }));
-  }, [jobs]);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -274,17 +291,12 @@ export const Jobs: React.FC = () => {
                 <CardBody className="text-center py-12">
                   <ClipboardList className="h-16 w-16 text-gray-400 mx-auto mb-4" />
                   <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-                    Set Your Seeker ID
+                    Register to track applications
                   </h3>
                   <p className="text-gray-600 dark:text-gray-400 mb-4">
-                    To view your applications, open the browser console and run:
+                    Create a job seeker account — your ID is saved automatically so you can apply and use chat.
                   </p>
-                  <code className="bg-gray-100 dark:bg-gray-800 text-sm px-3 py-2 rounded-lg block max-w-md mx-auto text-left">
-                    localStorage.setItem('seekerId', 'YOUR_ID')
-                  </code>
-                  <p className="text-gray-500 dark:text-gray-500 text-sm mt-3">
-                    Then refresh this page.
-                  </p>
+                  <Button onClick={() => navigate('/register/jobseeker')}>Register as job seeker</Button>
                 </CardBody>
               </Card>
             ) : appsLoading ? (
@@ -321,7 +333,9 @@ export const Jobs: React.FC = () => {
                             </span>
                           </div>
                           <p className="text-sm text-gray-600 dark:text-gray-400">
-                            Job Ad #{app.jobAdvertisementId} · Applied: {formatDate(app.applicationDate)}
+                            {app.jobTitle ?? `Job #${app.jobAdvertisementId}`}
+                            {app.employerCompanyName ? ` · ${app.employerCompanyName}` : ''} · Applied:{' '}
+                            {formatDate(app.applicationDate)}
                           </p>
                         </div>
 
@@ -337,6 +351,24 @@ export const Jobs: React.FC = () => {
                     </CardBody>
                   </Card>
                 ))}
+              </div>
+            )}
+            {seekerId && appsTotalPages > 1 && (
+              <div className="flex justify-center items-center gap-2 mt-6">
+                <Button variant="outline" size="sm" disabled={appsPage <= 0} onClick={() => setAppsPage((p) => Math.max(0, p - 1))}>
+                  Previous
+                </Button>
+                <span className="text-sm text-gray-600 dark:text-gray-400">
+                  Page {appsPage + 1} / {appsTotalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={appsPage >= appsTotalPages - 1}
+                  onClick={() => setAppsPage((p) => p + 1)}
+                >
+                  Next
+                </Button>
               </div>
             )}
           </div>
@@ -392,7 +424,7 @@ export const Jobs: React.FC = () => {
                         />
                       </div>
                       <Select
-                        options={cities}
+                        options={cityOptions}
                         value={selectedCity}
                         onChange={(e) => setSelectedCity(e.target.value)}
                         label="City"
@@ -426,7 +458,7 @@ export const Jobs: React.FC = () => {
                     <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
                     <p className="mt-4 text-gray-600 dark:text-gray-400">Loading jobs...</p>
                   </div>
-                ) : filteredJobs.length === 0 ? (
+                ) : jobs.length === 0 ? (
                   <Card>
                     <CardBody className="text-center py-12">
                       <Briefcase className="h-16 w-16 text-gray-400 mx-auto mb-4" />
@@ -440,7 +472,7 @@ export const Jobs: React.FC = () => {
                   </Card>
                 ) : (
                   <div className="grid grid-cols-1 gap-6">
-                    {filteredJobs.map((job) => (
+                    {jobs.map((job) => (
                       <Card key={job.id} hover>
                         <CardBody>
                           <div className="flex flex-col md:flex-row md:items-start md:justify-between">
@@ -500,9 +532,9 @@ export const Jobs: React.FC = () => {
                                     });
                                     const isSuccess = result.success || (result as any).succes || false;
                                     if (isSuccess) {
-                                      toast.success('Application submitted! You can now chat with the AI Recruiter.');
-                                      // Reload applications and switch to My Applications tab
-                                      await loadApplications(seekerId);
+                                      toast.success('Application submitted! Open chat to continue AI screening.');
+                                      setAppsPage(0);
+                                      await loadApplications(seekerId, 0);
                                       setActiveTab('applications');
                                     } else {
                                       toast.error(result.message || 'Failed to apply.');
@@ -533,9 +565,32 @@ export const Jobs: React.FC = () => {
                   </div>
                 )}
 
-                {!loading && filteredJobs.length > 0 && (
-                  <div className="mt-8 text-center text-gray-600 dark:text-gray-400">
-                    Showing {filteredJobs.length} of {jobs.length} jobs
+                {!loading && jobs.length > 0 && (
+                  <div className="mt-8 flex flex-col items-center gap-4 text-gray-600 dark:text-gray-400">
+                    <p className="text-sm">
+                      Showing {jobs.length} of {jobTotalElements} job{jobTotalElements === 1 ? '' : 's'} (page{' '}
+                      {jobPage + 1} of {Math.max(jobTotalPages, 1)})
+                    </p>
+                    {jobTotalPages > 1 && (
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={jobPage <= 0}
+                          onClick={() => setJobPage((p) => Math.max(0, p - 1))}
+                        >
+                          Previous
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={jobPage >= jobTotalPages - 1}
+                          onClick={() => setJobPage((p) => p + 1)}
+                        >
+                          Next
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 )}
               </>

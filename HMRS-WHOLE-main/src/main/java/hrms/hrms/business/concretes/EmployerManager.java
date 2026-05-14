@@ -10,7 +10,6 @@ import hrms.hrms.core.utilities.DataResult;
 import hrms.hrms.core.utilities.ErrorResult;
 import hrms.hrms.core.utilities.Result;
 import hrms.hrms.core.utilities.SuccessDataResult;
-import hrms.hrms.core.utilities.SuccessResult;
 import hrms.hrms.dto.EmployerDto;
 import hrms.hrms.dto.request.EmployerRegisterRequest;
 import hrms.hrms.entity.Employer;
@@ -44,7 +43,7 @@ public class EmployerManager implements EmployerService {
 		e.setPassword(passwordEncoder.encode(request.getPassword()));
 		employerDao.save(e);
 
-		return new SuccessResult("Employer registered.");
+		return new SuccessDataResult<>(e.getId(), "Employer registered.");
 	}
 
 	@Override

@@ -149,6 +149,8 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
               <div className="space-y-2">
                 {msgs.map((msg) => {
                   const self = isSelf(msg);
+                  const isSystem = (msg.senderType || '').toUpperCase() === 'SYSTEM';
+                  const isBot = (msg.senderType || '').toUpperCase() === 'BOT';
                   return (
                     <div
                       key={msg.id}
@@ -168,7 +170,11 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                         className={`relative max-w-[75%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed shadow-lg ${
                           self
                             ? 'bg-gradient-to-br from-indigo-600 to-violet-600 text-white rounded-tr-sm'
-                            : 'bg-slate-800 text-slate-100 border border-slate-700/60 rounded-tl-sm'
+                            : isSystem
+                              ? 'bg-slate-800/90 text-slate-200 border border-amber-500/40 rounded-tl-sm'
+                              : isBot
+                                ? 'bg-slate-800 text-slate-100 border border-violet-500/30 rounded-tl-sm'
+                                : 'bg-slate-800 text-slate-100 border border-slate-700/60 rounded-tl-sm'
                         }`}
                       >
                         {msg.content}

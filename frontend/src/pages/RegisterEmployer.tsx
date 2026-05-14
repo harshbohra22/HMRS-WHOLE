@@ -50,7 +50,11 @@ export const RegisterEmployer: React.FC = () => {
       
       if (isSuccess) {
         toast.success(result.message || 'Registration successful!');
-        setTimeout(() => navigate('/jobs'), 2000);
+        if (typeof result.data === 'number') {
+          localStorage.setItem('employerId', String(result.data));
+          localStorage.setItem('employerCompanyName', data.companyName);
+        }
+        setTimeout(() => navigate('/employer/post-job'), 1500);
       } else {
         toast.error(result.message || 'Registration failed');
       }

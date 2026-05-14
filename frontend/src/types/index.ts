@@ -4,6 +4,8 @@ export interface Result {
   success?: boolean;
   succes?: boolean; // Backend typo - handle both
   message: string;
+  /** Present on successful register / apply when backend returns SuccessDataResult */
+  data?: number;
 }
 
 export interface DataResult<T> {
@@ -13,15 +15,23 @@ export interface DataResult<T> {
   data: T;
 }
 
+export interface PageDto<T> {
+  content: T[];
+  totalElements: number;
+  totalPages: number;
+  number: number;
+  size: number;
+}
+
 // Entity Types
 export interface City {
   id: number;
-  name: string;
+  cityName: string;
 }
 
 export interface JobPosition {
   id: number;
-  name: string;
+  title: string;
 }
 
 export interface Employer {
@@ -60,6 +70,8 @@ export interface JobApplication {
   jobSeekerId: number;
   applicationDate: string;
   status: string;
+  jobTitle?: string;
+  employerCompanyName?: string;
 }
 
 // Request Types

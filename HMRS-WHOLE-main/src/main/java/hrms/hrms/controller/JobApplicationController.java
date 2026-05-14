@@ -8,12 +8,14 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import hrms.hrms.business.abstracts.JobApplicationService;
 import hrms.hrms.core.utilities.DataResult;
 import hrms.hrms.core.utilities.Result;
 import hrms.hrms.dto.JobApplicationDto;
+import hrms.hrms.dto.PageDto;
 import hrms.hrms.dto.request.ApplyJobRequest;
 import hrms.hrms.dto.request.UpdateApplicationStatusRequest;
 import jakarta.validation.Valid;
@@ -47,6 +49,19 @@ public class JobApplicationController {
 	@GetMapping("/by-jobseeker/{seekerId}")
 	public DataResult<List<JobApplicationDto>> getByJobSeeker(@PathVariable("seekerId") Integer seekerId) {
 		return jobApplicationService.getByJobSeeker(seekerId);
+	}
+
+	@GetMapping("/by-jobseeker/{seekerId}/page")
+	public DataResult<PageDto<JobApplicationDto>> getByJobSeekerPage(@PathVariable("seekerId") Integer seekerId,
+			@RequestParam(defaultValue = "0") int page,
+			@RequestParam(defaultValue = "10") int size) {
+		return jobApplicationService.getByJobSeekerPage(seekerId, page, size);
+	}
+
+	@GetMapping("/page")
+	public DataResult<PageDto<JobApplicationDto>> getAllPage(@RequestParam(defaultValue = "0") int page,
+			@RequestParam(defaultValue = "10") int size) {
+		return jobApplicationService.getAllPage(page, size);
 	}
 
 	@GetMapping("/getAll")

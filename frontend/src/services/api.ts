@@ -2,6 +2,7 @@ import axios from 'axios';
 import type {
   Result,
   DataResult,
+  PageDto,
   Employer,
   JobSeeker,
   JobAdvertisement,
@@ -91,6 +92,26 @@ export const jobAdvertisementsApi = {
     });
     return response.data;
   },
+  getPage: async (params: {
+    page: number;
+    size: number;
+    activeOnly: boolean;
+    q?: string;
+    city?: string;
+    sortByDeadline: boolean;
+  }): Promise<DataResult<PageDto<JobAdvertisement>>> => {
+    const response = await api.get<DataResult<PageDto<JobAdvertisement>>>('/jobPost/page', {
+      params: {
+        page: params.page,
+        size: params.size,
+        activeOnly: params.activeOnly,
+        q: params.q || undefined,
+        city: params.city || undefined,
+        sortByDeadline: params.sortByDeadline,
+      },
+    });
+    return response.data;
+  },
 };
 
 // Job Applications API
@@ -113,6 +134,23 @@ export const jobApplicationsApi = {
   },
   getAll: async (): Promise<DataResult<JobApplication[]>> => {
     const response = await api.get<DataResult<JobApplication[]>>('/applications/getAll');
+    return response.data;
+  },
+  getByJobSeekerPage: async (
+    seekerId: number,
+    page: number,
+    size: number
+  ): Promise<DataResult<PageDto<JobApplication>>> => {
+    const response = await api.get<DataResult<PageDto<JobApplication>>>(
+      `/applications/by-jobseeker/${seekerId}/page`,
+      { params: { page, size } }
+    );
+    return response.data;
+  },
+  getAllPage: async (page: number, size: number): Promise<DataResult<PageDto<JobApplication>>> => {
+    const response = await api.get<DataResult<PageDto<JobApplication>>>('/applications/page', {
+      params: { page, size },
+    });
     return response.data;
   },
 };

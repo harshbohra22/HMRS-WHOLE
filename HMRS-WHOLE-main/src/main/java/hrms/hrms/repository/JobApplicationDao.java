@@ -3,6 +3,8 @@ package hrms.hrms.repository;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import hrms.hrms.entity.JobApplication;
@@ -15,4 +17,6 @@ public interface JobApplicationDao extends JpaRepository<JobApplication, Integer
     List<JobApplication> findByJobAdvertisement_Id(Integer jobAdvertisementId);
 
     List<JobApplication> findByJobSeeker_Id(Integer jobSeekerId);
+
+    Page<JobApplication> findByJobSeeker_Id(Integer jobSeekerId, Pageable pageable);
 }

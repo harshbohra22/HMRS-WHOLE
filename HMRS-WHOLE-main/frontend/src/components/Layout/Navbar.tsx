@@ -65,6 +65,16 @@ export const Navbar: React.FC = () => {
                 <Users className="h-4 w-4 inline mr-1" />
                 Recruiter
               </Link>
+              <Link
+                to="/employer/post-job"
+                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  isActive('/employer/post-job')
+                    ? 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300'
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                }`}
+              >
+                Post job
+              </Link>
             </div>
           </div>
           <div className="flex items-center space-x-4">

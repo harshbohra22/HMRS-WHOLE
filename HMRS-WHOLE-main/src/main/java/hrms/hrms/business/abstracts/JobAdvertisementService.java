@@ -6,6 +6,7 @@ import java.util.List;
 import hrms.hrms.core.utilities.DataResult;
 import hrms.hrms.core.utilities.Result;
 import hrms.hrms.dto.JobAdvertisementDto;
+import hrms.hrms.dto.PageDto;
 import hrms.hrms.dto.request.CreateJobAdvertisementRequest;
 
 public interface JobAdvertisementService {
@@ -21,4 +22,7 @@ public interface JobAdvertisementService {
 	DataResult<List<JobAdvertisementDto>> getSortedByDeadlineAsc();
 
 	DataResult<List<JobAdvertisementDto>> getByDeadline(LocalDate date);
+
+	DataResult<PageDto<JobAdvertisementDto>> getPage(boolean activeOnly, String q, String city, boolean sortByDeadline,
+			int page, int size);
 }

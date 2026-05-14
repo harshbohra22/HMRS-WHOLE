@@ -1,9 +1,11 @@
 package hrms.hrms.business.concretes;
 
-import java.sql.Date;
 import java.time.LocalDate;
 import java.util.List;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import hrms.hrms.business.abstracts.JobAdvertisementService;
@@ -13,6 +15,7 @@ import hrms.hrms.core.utilities.Result;
 import hrms.hrms.core.utilities.SuccessDataResult;
 import hrms.hrms.core.utilities.SuccessResult;
 import hrms.hrms.dto.JobAdvertisementDto;
+import hrms.hrms.dto.PageDto;
 import hrms.hrms.dto.request.CreateJobAdvertisementRequest;
 import hrms.hrms.entity.City;
 import hrms.hrms.entity.Employer;
@@ -97,6 +100,36 @@ public class JobAdvertisementManager implements JobAdvertisementService {
 	public DataResult<List<JobAdvertisementDto>> getByDeadline(LocalDate date) {
 		var list = jobAdvertisementDao.findByApplicationDeadline(date).stream().map(this::toDto).toList();
 		return new SuccessDataResult<>(list, "Job advertisements for given deadline.");
+	}
+
+	@Override
+	public DataResult<PageDto<JobAdvertisementDto>> getPage(boolean activeOnly, String q, String city,
+			boolean sortByDeadline, int page, int size) {
+		String qNorm = blankToNull(q);
+		String cityNorm = blankToNull(city);
+		Sort sort = sortByDeadline
+				? Sort.by("applicationDeadline").ascending()
+				: Sort.by("releaseDate").descending();
+		PageRequest pr = PageRequest.of(Math.max(0, page), Math.min(Math.max(size, 1), 50), sort);
+
+		Page<JobAdvertisement> resultPage = activeOnly
+				? jobAdvertisementDao.pageActiveFiltered(qNorm, cityNorm, pr)
+				: jobAdvertisementDao.pageAllFiltered(qNorm, cityNorm, pr);
+
+		PageDto<JobAdvertisementDto> dto = new PageDto<>(
+				resultPage.getContent().stream().map(this::toDto).toList(),
+				resultPage.getTotalElements(),
+				resultPage.getTotalPages(),
+				resultPage.getNumber(),
+				resultPage.getSize());
+		return new SuccessDataResult<>(dto, "Job advertisements page.");
+	}
+
+	private static String blankToNull(String s) {
+		if (s == null || s.isBlank()) {
+			return null;
+		}
+		return s.trim();
 	}
 
 	private JobAdvertisementDto toDto(JobAdvertisement j) {

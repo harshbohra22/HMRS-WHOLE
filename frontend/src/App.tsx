@@ -10,6 +10,7 @@ import { RegisterJobSeeker } from './pages/RegisterJobSeeker';
 import { TestApi } from './pages/TestApi';
 import { ChatPage } from './pages/ChatPage';
 import { EmployerDashboard } from './pages/EmployerDashboard';
+import { PostJob } from './pages/PostJob';
 
 function App() {
   return (
@@ -26,6 +27,7 @@ function App() {
               <Route path="/test-api" element={<TestApi />} />
                <Route path="/chat/:applicationId" element={<ChatPage />} />
               <Route path="/employer" element={<EmployerDashboard />} />
+              <Route path="/employer/post-job" element={<PostJob />} />
             </Routes>
           </main>
           <Footer />

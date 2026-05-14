@@ -23,6 +23,12 @@ import hrms.hrms.entity.JobApplicationStatus;
 @Service
 public class AiScreeningManager implements AiScreeningService {
 
+    private static final int MIN_AI_SCREENING_QUESTIONS = 5;
+    private static final String HANDOFF_TAG = "[HANDOFF: RECRUITER]";
+    private static final int MAX_MESSAGES_IN_PROMPT = 24;
+    private static final int MAX_PROMPT_CHARS = 12_000;
+    private static final int MAX_CHARS_PER_MESSAGE = 1_200;
+
     private final ChatService chatService;
     private final JobApplicationService applicationService;
     private final SimpMessagingTemplate messagingTemplate;
@@ -32,13 +38,9 @@ public class AiScreeningManager implements AiScreeningService {
     private static final String GEMINI_URL =
             "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent";
 
-    private static final String SYSTEM_INSTRUCTION =
-            "You are a technical HR Recruiter Bot. " +
-            "Screen the candidate by asking professional questions (one at a time). " +
-            "After 3-5 questions, if you have enough info, conclude the interview. " +
-            "If they are a good fit, end your message with [DECISION: ACCEPTED]. " +
-            "If not a fit, end with [DECISION: REJECTED]. " +
-            "Do not mention these tags to the user.";
+    private static final String SYSTEM_BASE =
+            "You are a technical HR Recruiter Bot. Screen the candidate with professional questions, one at a time. "
+            + "Do not mention internal tags to the candidate. ";
 
     public AiScreeningManager(
             ChatService chatService,
@@ -56,10 +58,8 @@ public class AiScreeningManager implements AiScreeningService {
     public void processAndReply(Integer applicationId, String userMessage) {
         CompletableFuture.runAsync(() -> {
             try {
-                // Guard: only reply during the AI screening phase (PENDING status)
                 JobApplicationStatus currentStatus = applicationService.getStatusById(applicationId);
                 if (currentStatus == null || currentStatus != JobApplicationStatus.PENDING) {
-                    // Application already decided — human recruiter handles the chat now
                     return;
                 }
 
@@ -68,23 +68,20 @@ public class AiScreeningManager implements AiScreeningService {
                     return;
                 }
 
-                // 1. Fetch chat history for context
                 List<ChatMessageDto> history = chatService.getHistory(applicationId);
-                StringBuilder historyText = new StringBuilder();
-                if (history != null) {
-                    for (ChatMessageDto msg : history) {
-                        historyText.append(msg.getSenderType()).append(": ").append(msg.getContent()).append("\n");
-                    }
-                }
-                historyText.append("USER: ").append(userMessage).append("\nAI:");
+                int botCount = countBotMessages(history);
 
-                // 2. Build the Gemini API request body
+                String transcript = buildTranscriptForModel(history);
+                String userTurn = transcript.isBlank() ? "BOT:" : transcript + "\nBOT:";
+
+                String systemInstruction = SYSTEM_BASE + phaseInstruction(botCount);
+
                 Map<String, Object> requestBody = Map.of(
                     "system_instruction", Map.of(
-                        "parts", List.of(Map.of("text", SYSTEM_INSTRUCTION))
+                        "parts", List.of(Map.of("text", systemInstruction))
                     ),
                     "contents", List.of(
-                        Map.of("parts", List.of(Map.of("text", historyText.toString())))
+                        Map.of("parts", List.of(Map.of("text", userTurn)))
                     )
                 );
 
@@ -96,21 +93,21 @@ public class AiScreeningManager implements AiScreeningService {
                 @SuppressWarnings("unchecked")
                 Map<String, Object> response = restTemplate.postForObject(url, entity, Map.class);
 
-                // 3. Extract and parse the bot reply
                 String botReplyText = extractText(response);
 
                 if (botReplyText != null && !botReplyText.isBlank()) {
-                    // Check for decision tags
-                    if (botReplyText.contains("[DECISION: ACCEPTED]")) {
-                        applicationService.updateStatus(new UpdateApplicationStatusRequest(applicationId, JobApplicationStatus.ACCEPTED));
-                        botReplyText = botReplyText.replace("[DECISION: ACCEPTED]", "").trim();
-                    } else if (botReplyText.contains("[DECISION: REJECTED]")) {
-                        applicationService.updateStatus(new UpdateApplicationStatusRequest(applicationId, JobApplicationStatus.REJECTED));
-                        botReplyText = botReplyText.replace("[DECISION: REJECTED]", "").trim();
+                    if (botCount < MIN_AI_SCREENING_QUESTIONS) {
+                        botReplyText = stripForbiddenTags(botReplyText);
+                    } else {
+                        botReplyText = botReplyText.replace(HANDOFF_TAG, "").trim();
                     }
 
-                    // 4. Save and Broadcast
                     sendBotMessage(applicationId, botReplyText);
+
+                    if (botCount >= MIN_AI_SCREENING_QUESTIONS) {
+                        applicationService.updateStatus(
+                                new UpdateApplicationStatusRequest(applicationId, JobApplicationStatus.AWAITING_RECRUITER));
+                    }
                 }
             } catch (org.springframework.web.client.HttpStatusCodeException e) {
                 System.err.println("Gemini API error status: " + e.getStatusCode());
@@ -122,6 +119,76 @@ public class AiScreeningManager implements AiScreeningService {
                 sendBotMessage(applicationId, "AI screening hit an unexpected error. Please try again.");
             }
         });
+    }
+
+    private static int countBotMessages(List<ChatMessageDto> history) {
+        if (history == null || history.isEmpty()) {
+            return 0;
+        }
+        int n = 0;
+        for (ChatMessageDto msg : history) {
+            if (msg.getSenderType() != null && "BOT".equalsIgnoreCase(msg.getSenderType().trim())) {
+                n++;
+            }
+        }
+        return n;
+    }
+
+    private static String phaseInstruction(int botCount) {
+        if (botCount < MIN_AI_SCREENING_QUESTIONS) {
+            int next = botCount + 1;
+            return "You have asked " + botCount + " screening question(s). You MUST ask exactly one more question "
+                    + "(question " + next + " of at least " + MIN_AI_SCREENING_QUESTIONS + "). "
+                    + "Do not conclude the interview, do not give final hiring feedback, and do not use any tags like "
+                    + HANDOFF_TAG + ", [DECISION: ACCEPTED], or [DECISION: REJECTED].";
+        }
+        return "You have already asked at least " + MIN_AI_SCREENING_QUESTIONS + " screening questions. "
+                + "Do not ask another interview question. Briefly summarize strengths, gaps, and overall fit signal, "
+                + "thank the candidate, and say a human recruiter will follow up. "
+                + "End your reply with the exact token " + HANDOFF_TAG + " on its own line (for system use only).";
+    }
+
+    private static String stripForbiddenTags(String text) {
+        return text
+                .replace(HANDOFF_TAG, "")
+                .replace("[DECISION: ACCEPTED]", "")
+                .replace("[DECISION: REJECTED]", "")
+                .trim();
+    }
+
+    /**
+     * Keeps the Gemini prompt small: only the tail of the thread, per-message caps, and a global char budget.
+     */
+    private static String buildTranscriptForModel(List<ChatMessageDto> history) {
+        if (history == null || history.isEmpty()) {
+            return "";
+        }
+        int total = history.size();
+        int from = Math.max(0, total - MAX_MESSAGES_IN_PROMPT);
+        StringBuilder sb = new StringBuilder();
+        if (from > 0) {
+            sb.append("[Earlier ").append(from).append(" message(s) omitted for brevity.]\n");
+        }
+        for (int i = from; i < total; i++) {
+            ChatMessageDto msg = history.get(i);
+            String type = msg.getSenderType() != null ? msg.getSenderType().trim() : "?";
+            sb.append(type).append(": ").append(truncateContent(msg.getContent())).append('\n');
+        }
+        String s = sb.toString();
+        if (s.length() > MAX_PROMPT_CHARS) {
+            return s.substring(s.length() - MAX_PROMPT_CHARS);
+        }
+        return s;
+    }
+
+    private static String truncateContent(String content) {
+        if (content == null) {
+            return "";
+        }
+        if (content.length() <= MAX_CHARS_PER_MESSAGE) {
+            return content;
+        }
+        return content.substring(0, MAX_CHARS_PER_MESSAGE) + "…";
     }
 
     private void sendBotMessage(Integer applicationId, String content) {

@@ -55,6 +55,10 @@ export const RegisterJobSeeker: React.FC = () => {
       
       if (isSuccess) {
         toast.success(result.message || 'Registration successful!');
+        if (typeof result.data === 'number') {
+          localStorage.setItem('seekerId', String(result.data));
+          localStorage.setItem('seekerName', `${data.name} ${data.lastName}`);
+        }
         
         // Check if there's a selected job to apply for
         const selectedJobId = localStorage.getItem('selectedJobId');

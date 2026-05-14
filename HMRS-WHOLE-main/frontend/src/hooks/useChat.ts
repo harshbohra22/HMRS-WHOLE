@@ -16,6 +16,7 @@ interface UseChatReturn {
   sendMessage: (content: string) => void;
   connected: boolean;
   loading: boolean;
+  isTyping: boolean;
 }
 
 export function useChat({

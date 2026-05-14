@@ -1,7 +1,7 @@
 export interface ChatMessageDto {
   id: number;
   applicationId: number;
-  senderType: 'EMPLOYER' | 'JOBSEEKER';
+  senderType: 'EMPLOYER' | 'JOBSEEKER' | 'BOT' | 'SYSTEM';
   senderId: number;
   senderName: string;
   content: string;

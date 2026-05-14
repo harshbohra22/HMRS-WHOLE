@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
-import type { ChatMessageDto } from '../../types/chat';
+import type { ChatMessageDto } from '../types/chat';
 
 interface UseChatNotificationOptions {
   applicationIds: number[];       // all app IDs to watch
-  senderType: 'EMPLOYER' | 'JOBSEEKER'; // the current user's type
+  senderType: string; // e.g. JOBSEEKER or EMPLOYER (incoming may be BOT, SYSTEM, etc.)
   senderId: number;
   onNewMessage?: (appId: number, message: ChatMessageDto) => void;
 }
