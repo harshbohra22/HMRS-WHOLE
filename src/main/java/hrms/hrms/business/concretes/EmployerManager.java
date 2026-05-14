@@ -28,12 +28,21 @@ public class EmployerManager implements EmployerService {
 	}
 
 	@Override
+<<<<<<< HEAD
+	public DataResult<Integer> register(EmployerRegisterRequest request) {
+		if (!request.getPassword().equals(request.getConfirmPassword())) {
+			return new hrms.hrms.core.utilities.ErrorDataResult<>(null, "Passwords do not match.");
+		}
+		if (employerDao.findByEmail(request.getEmail()).isPresent()) {
+			return new hrms.hrms.core.utilities.ErrorDataResult<>(null, "Email is already in use.");
+=======
 	public Result register(EmployerRegisterRequest request) {
 		if (!request.getPassword().equals(request.getConfirmPassword())) {
 			return new ErrorResult("Passwords do not match.");
 		}
 		if (employerDao.findByEmail(request.getEmail()).isPresent()) {
 			return new ErrorResult("Email is already in use.");
+>>>>>>> 6cb214294d00901c404e8ba0167a2ec15056bda4
 		}
 
 		Employer e = new Employer();
@@ -42,9 +51,15 @@ public class EmployerManager implements EmployerService {
 		e.setEmail(request.getEmail());
 		e.setPhoneNumber(request.getPhoneNumber());
 		e.setPassword(passwordEncoder.encode(request.getPassword()));
+<<<<<<< HEAD
+		e = employerDao.save(e);
+
+		return new hrms.hrms.core.utilities.SuccessDataResult<>(e.getId(), "Employer registered.");
+=======
 		employerDao.save(e);
 
 		return new SuccessResult("Employer registered.");
+>>>>>>> 6cb214294d00901c404e8ba0167a2ec15056bda4
 	}
 
 	@Override

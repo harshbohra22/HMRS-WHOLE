@@ -21,4 +21,9 @@ public interface JobAdvertisementService {
 	DataResult<List<JobAdvertisementDto>> getSortedByDeadlineAsc();
 
 	DataResult<List<JobAdvertisementDto>> getByDeadline(LocalDate date);
+<<<<<<< HEAD
+
+	DataResult<org.springframework.data.domain.Page<JobAdvertisementDto>> getPage(int page, int size, boolean activeOnly, String q, String city, boolean sortByDeadline);
+=======
+>>>>>>> 6cb214294d00901c404e8ba0167a2ec15056bda4
 }

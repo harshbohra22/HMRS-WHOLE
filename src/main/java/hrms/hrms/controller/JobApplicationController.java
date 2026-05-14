@@ -53,4 +53,22 @@ public class JobApplicationController {
 	public DataResult<List<JobApplicationDto>> getAll() {
 		return jobApplicationService.getAll();
 	}
+<<<<<<< HEAD
+
+	@GetMapping("/page")
+	public DataResult<org.springframework.data.domain.Page<JobApplicationDto>> getAllPage(
+			@org.springframework.web.bind.annotation.RequestParam(defaultValue = "0") int page,
+			@org.springframework.web.bind.annotation.RequestParam(defaultValue = "10") int size) {
+		return jobApplicationService.getAllPage(page, size);
+	}
+
+	@GetMapping("/by-jobseeker/{seekerId}/page")
+	public DataResult<org.springframework.data.domain.Page<JobApplicationDto>> getByJobSeekerPage(
+			@PathVariable("seekerId") Integer seekerId,
+			@org.springframework.web.bind.annotation.RequestParam(defaultValue = "0") int page,
+			@org.springframework.web.bind.annotation.RequestParam(defaultValue = "10") int size) {
+		return jobApplicationService.getByJobSeekerPage(seekerId, page, size);
+	}
+=======
+>>>>>>> 6cb214294d00901c404e8ba0167a2ec15056bda4
 }

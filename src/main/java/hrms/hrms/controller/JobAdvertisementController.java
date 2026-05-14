@@ -58,4 +58,18 @@ public class JobAdvertisementController {
 	public DataResult<List<JobAdvertisementDto>> getByDeadline(@RequestParam LocalDate date) {
 		return jobAdvertisementService.getByDeadline(date);
 	}
+<<<<<<< HEAD
+
+	@GetMapping("/page")
+	public DataResult<org.springframework.data.domain.Page<JobAdvertisementDto>> getPage(
+			@RequestParam(defaultValue = "0") int page,
+			@RequestParam(defaultValue = "10") int size,
+			@RequestParam(defaultValue = "false") boolean activeOnly,
+			@RequestParam(required = false) String q,
+			@RequestParam(required = false) String city,
+			@RequestParam(defaultValue = "false") boolean sortByDeadline) {
+		return jobAdvertisementService.getPage(page, size, activeOnly, q, city, sortByDeadline);
+	}
+=======
+>>>>>>> 6cb214294d00901c404e8ba0167a2ec15056bda4
 }

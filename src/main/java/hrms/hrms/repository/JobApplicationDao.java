@@ -15,4 +15,9 @@ public interface JobApplicationDao extends JpaRepository<JobApplication, Integer
     List<JobApplication> findByJobAdvertisement_Id(Integer jobAdvertisementId);
 
     List<JobApplication> findByJobSeeker_Id(Integer jobSeekerId);
+<<<<<<< HEAD
+
+    org.springframework.data.domain.Page<JobApplication> findByJobSeeker_Id(Integer jobSeekerId, org.springframework.data.domain.Pageable pageable);
+=======
+>>>>>>> 6cb214294d00901c404e8ba0167a2ec15056bda4
 }

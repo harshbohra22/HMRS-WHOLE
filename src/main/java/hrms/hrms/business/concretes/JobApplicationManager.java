@@ -97,4 +97,29 @@ public class JobApplicationManager implements JobApplicationService {
 				.toList();
 		return new SuccessDataResult<>(list, "All applications listed.");
 	}
+<<<<<<< HEAD
+
+	@Override
+	public DataResult<org.springframework.data.domain.Page<JobApplicationDto>> getAllPage(int pageNo, int pageSize) {
+		org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(pageNo, pageSize);
+		org.springframework.data.domain.Page<JobApplication> page = jobApplicationDao.findAll(pageable);
+		org.springframework.data.domain.Page<JobApplicationDto> dtoPage = page.map(a -> new JobApplicationDto(
+				a.getId(), a.getJobAdvertisement().getId(), a.getJobSeeker().getId(),
+				a.getJobAdvertisement().getJobPosition().getTitle(),
+				a.getJobAdvertisement().getEmployer().getCompanyName(), a.getApplicationDate(), a.getStatus()));
+		return new SuccessDataResult<>(dtoPage, "Applications listed.");
+	}
+
+	@Override
+	public DataResult<org.springframework.data.domain.Page<JobApplicationDto>> getByJobSeekerPage(Integer jobSeekerId, int pageNo, int pageSize) {
+		org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(pageNo, pageSize, org.springframework.data.domain.Sort.by("applicationDate").descending());
+		org.springframework.data.domain.Page<JobApplication> page = jobApplicationDao.findByJobSeeker_Id(jobSeekerId, pageable);
+		org.springframework.data.domain.Page<JobApplicationDto> dtoPage = page.map(a -> new JobApplicationDto(
+				a.getId(), a.getJobAdvertisement().getId(), a.getJobSeeker().getId(),
+				a.getJobAdvertisement().getJobPosition().getTitle(),
+				a.getJobAdvertisement().getEmployer().getCompanyName(), a.getApplicationDate(), a.getStatus()));
+		return new SuccessDataResult<>(dtoPage, "Job seeker applications listed.");
+	}
+=======
+>>>>>>> 6cb214294d00901c404e8ba0167a2ec15056bda4
 }

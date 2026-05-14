@@ -19,4 +19,11 @@ public interface JobApplicationService {
 	DataResult<List<JobApplicationDto>> getByJobSeeker(Integer jobSeekerId);
 	
 	DataResult<List<JobApplicationDto>> getAll();
+<<<<<<< HEAD
+
+	DataResult<org.springframework.data.domain.Page<JobApplicationDto>> getAllPage(int pageNo, int pageSize);
+
+	DataResult<org.springframework.data.domain.Page<JobApplicationDto>> getByJobSeekerPage(Integer jobSeekerId, int pageNo, int pageSize);
+=======
+>>>>>>> 6cb214294d00901c404e8ba0167a2ec15056bda4
 }

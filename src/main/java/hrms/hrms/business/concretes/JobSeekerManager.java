@@ -28,6 +28,17 @@ public class JobSeekerManager implements JobSeekerService {
 	}
 
 	@Override
+<<<<<<< HEAD
+	public DataResult<Integer> register(JobSeekerRegisterRequest request) {
+		if (!request.getPassword().equals(request.getConfirmPassword())) {
+			return new hrms.hrms.core.utilities.ErrorDataResult<>(null, "Passwords do not match.");
+		}
+		if (jobSeekerDao.findByEmail(request.getEmail()).isPresent()) {
+			return new hrms.hrms.core.utilities.ErrorDataResult<>(null, "Email is already in use.");
+		}
+		if (jobSeekerDao.findByNationalId(request.getNationalId()).isPresent()) {
+			return new hrms.hrms.core.utilities.ErrorDataResult<>(null, "National ID is already in use.");
+=======
 	public Result register(JobSeekerRegisterRequest request) {
 		if (!request.getPassword().equals(request.getConfirmPassword())) {
 			return new ErrorResult("Passwords do not match.");
@@ -37,6 +48,7 @@ public class JobSeekerManager implements JobSeekerService {
 		}
 		if (jobSeekerDao.findByNationalId(request.getNationalId()).isPresent()) {
 			return new ErrorResult("National ID is already in use.");
+>>>>>>> 6cb214294d00901c404e8ba0167a2ec15056bda4
 		}
 
 		JobSeeker js = new JobSeeker();
@@ -46,9 +58,15 @@ public class JobSeekerManager implements JobSeekerService {
 		js.setBirthDate(request.getBirthDate());
 		js.setEmail(request.getEmail());
 		js.setPassword(passwordEncoder.encode(request.getPassword()));
+<<<<<<< HEAD
+		js = jobSeekerDao.save(js);
+
+		return new hrms.hrms.core.utilities.SuccessDataResult<>(js.getId(), "Job seeker registered.");
+=======
 		jobSeekerDao.save(js);
 
 		return new SuccessResult("Job seeker registered.");
+>>>>>>> 6cb214294d00901c404e8ba0167a2ec15056bda4
 	}
 
 	@Override

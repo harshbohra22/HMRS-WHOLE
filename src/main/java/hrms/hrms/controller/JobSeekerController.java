@@ -28,7 +28,11 @@ public class JobSeekerController {
 	}
 
 	@PostMapping("/register")
+<<<<<<< HEAD
+	public DataResult<Integer> register(@Valid @RequestBody JobSeekerRegisterRequest request) {
+=======
 	public Result register(@Valid @RequestBody JobSeekerRegisterRequest request) {
+>>>>>>> 6cb214294d00901c404e8ba0167a2ec15056bda4
 		return jobSeekerService.register(request);
 	}
 

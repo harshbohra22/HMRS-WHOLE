@@ -99,6 +99,20 @@ public class JobAdvertisementManager implements JobAdvertisementService {
 		return new SuccessDataResult<>(list, "Job advertisements for given deadline.");
 	}
 
+<<<<<<< HEAD
+	@Override
+	public DataResult<org.springframework.data.domain.Page<JobAdvertisementDto>> getPage(int pageNo, int pageSize, boolean activeOnly, String q, String city, boolean sortByDeadline) {
+		org.springframework.data.domain.Sort sort = sortByDeadline 
+				? org.springframework.data.domain.Sort.by("applicationDeadline").ascending() 
+				: org.springframework.data.domain.Sort.unsorted();
+		org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(pageNo, pageSize, sort);
+		org.springframework.data.domain.Page<JobAdvertisement> page = jobAdvertisementDao.findWithFilters(activeOnly, city, q, pageable);
+		org.springframework.data.domain.Page<JobAdvertisementDto> dtoPage = page.map(this::toDto);
+		return new SuccessDataResult<>(dtoPage, "Job advertisements listed.");
+	}
+
+=======
+>>>>>>> 6cb214294d00901c404e8ba0167a2ec15056bda4
 	private JobAdvertisementDto toDto(JobAdvertisement j) {
 		return new JobAdvertisementDto(j.getId(), j.getJobPosition().getTitle(), j.getEmployer().getCompanyName(),
 				j.getCity().getCityName(), j.getOpenPositionCount(), j.getMinSalary(), j.getMaxSalary(),
